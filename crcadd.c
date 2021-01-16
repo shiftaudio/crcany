@@ -24,6 +24,30 @@
 #  endif
 #endif
 
+static FILE *fopen_wx(const char *pathname)
+{
+    FILE *f = NULL;
+#ifdef __MINGW32__
+        if (access(pathname, F_OK) == 0)
+            errno = EEXIST;
+        else
+             f = fopen(pathname, "w");
+#else
+        f = fopen(path, "wx");
+#endif
+    return f;
+}
+
+static int mk_directory(const char *pathname, mode_t mode)
+{
+#ifdef _WIN32
+    return mkdir(pathname);
+    (void) mode;
+#else
+    return = mkdir(pathname, mode);
+#endif
+}
+
 /* A strcpy() that returns a pointer to the terminating null, like stpcpy(). */
 static char *strcpytail(char *dst, char const *src) {
     size_t i = 0;
@@ -103,7 +127,7 @@ static int create_source(char *src, char *name, FILE **head, FILE **code) {
         *code = NULL;
 
     // create the src directory if it does not exist
-    int ret = mkdir(src, 0755);
+    int ret = mk_directory(src, 0755);
     if (ret && errno != EEXIST)
         return 1;
 
@@ -119,7 +143,7 @@ static int create_source(char *src, char *name, FILE **head, FILE **code) {
     // create header file
     if (head != NULL) {
         *suff = 'h';
-        *head = fopen(path, "wx");
+        *head = fopen_wx(path);
         if (*head == NULL)
             return errno == EEXIST ? 2 : 1;
     }
@@ -127,7 +151,7 @@ static int create_source(char *src, char *name, FILE **head, FILE **code) {
     // create code file
     if (code != NULL) {
         *suff = 'c';
-        *code = fopen(path, "wx");
+        *code = fopen_wx(path);
         if (*code == NULL) {
             int err = errno;
             if (head != NULL) {

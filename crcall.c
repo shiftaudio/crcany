@@ -27,6 +27,30 @@
 // printf() directive to print a uintmax_t in hexadecimal (e.g. "llx" or "jx").
 #define X PRIxMAX
 
+static FILE *fopen_wx(const char *pathname)
+{
+    FILE *f = NULL;
+#ifdef __MINGW32__
+        if (access(pathname, F_OK) == 0)
+            errno = EEXIST;
+        else
+             f = fopen(pathname, "w");
+#else
+        f = fopen(pathname, "wx");
+#endif
+    return f;
+}
+
+static int mk_directory(const char *pathname, mode_t mode)
+{
+#ifdef _WIN32
+    return mkdir(pathname);
+    (void) mode;
+#else
+    return = mkdir(pathname, mode);
+#endif
+}
+
 /* A strcpy() that returns a pointer to the terminating null, like stpcpy(). */
 static char *strcpytail(char *dst, char const *src) {
     size_t i = 0;
@@ -173,9 +197,11 @@ static int create_source(char *src, char *name, FILE **head, FILE **code) {
         *code = NULL;
 
     // create the src directory if it does not exist
-    int ret = mkdir(src, 0755);
-    if (ret && errno != EEXIST)
+    int ret = mk_directory(src, 0755);
+    if (ret && errno != EEXIST) {
+        fprintf(stderr, "error %d creating directory: %s\n", errno, strerror(errno));
         return 1;
+    }
 
     // construct the path for the source files, leaving suff pointing to the
     // position for the 'h' or 'c'.
@@ -189,15 +215,17 @@ static int create_source(char *src, char *name, FILE **head, FILE **code) {
     // create header file
     if (head != NULL) {
         *suff = 'h';
-        *head = fopen(path, "wx");
-        if (*head == NULL)
+        *head = fopen_wx(path);
+        if (*head == NULL) {
+            fprintf(stderr, "error %d creating header file: %s\n", errno, strerror(errno));
             return errno == EEXIST ? 2 : 1;
+        }
     }
 
     // create code file
     if (code != NULL) {
         *suff = 'c';
-        *code = fopen(path, "wx");
+        *code = fopen_wx(path);
         if (*code == NULL) {
             int err = errno;
             if (head != NULL) {
@@ -206,6 +234,7 @@ static int create_source(char *src, char *name, FILE **head, FILE **code) {
                 *suff = 'h';
                 unlink(path);
             }
+            fprintf(stderr, "error %d creating code file: %s\n", errno, strerror(errno));
             return err == EEXIST ? 2 : 1;
         }
     }
