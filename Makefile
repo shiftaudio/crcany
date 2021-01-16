@@ -6,11 +6,11 @@ src/allcrcs.c: crcall allcrcs-abbrev.txt
 	./crcall < allcrcs-abbrev.txt
 	@cat src/allcrcs.h >> src/allcrcs.c
 	@rm src/allcrcs.h
-	make src
+	$(MAKE) src
 src: crcany src/test_src
 src/test_src: src/test_src.o $(OBJS)
 crcany: crcany.o $(OBJS)
-crcany.o: crcany.c src/allcrcs.c
+crcany.o: crcany.c
 crctest: crctest.o crc.o crcdbl.o model.o
 crctest.o: crctest.c crc.h crcdbl.h model.h
 crcgen.o: crcgen.c crcgen.h crc.h model.h
